@@ -8,7 +8,9 @@
 #import "LBModel.h"
 #import "LBRESTAdapter.h"
 #import "LBInstallation.h"
+#if !defined(TARGET_OS_MAC)
 #import "LBPushNotification.h"
+#endif
 #import "LBUser.h"
 #import "LBFile.h"
 #import "LBContainer.h"
