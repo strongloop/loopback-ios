@@ -9,6 +9,10 @@
 #import "LBRESTAdapter.h"
 #import "SLStreamParam.h"
 
+#if TARGET_OS_IPHONE
+#import <MobileCoreServices/MobileCoreServices.h>
+#endif
+
 static NSString *mimeTypeForFileName(NSString *fileName) {
     CFStringRef pathExtension = (__bridge_retained CFStringRef)[fileName pathExtension];
     CFStringRef type = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension,
