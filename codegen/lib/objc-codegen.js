@@ -1,11 +1,12 @@
 var fs = require('fs');
 var ejs = require('ejs');
+var pascalCase = require('pascal-case');
 
 /**
  * Generate iOS Client-side Objective-C representation of the models.
  *
  * @param {Object} app The loopback application created via `app = loopback()`.
- * @returns {string} An array of the generated source file contents.
+ * @returns {Object} A hash map indexed by file names with file contents as the value.
  */
 exports.objcModels = function generateServices(app, modelPrefix) {
 
@@ -21,17 +22,20 @@ exports.objcModels = function generateServices(app, modelPrefix) {
   var ret = {};
 
   for (var modelName in models) {
-    var script = renderContent(objcModelHTemplate, models[modelName]);
-    ret[models[modelName].objcModelName + '.h'] = script;
+    var modelDesc = models[modelName];
+    var objcModelName = models[modelName].objcModelName;
 
-    var script = renderContent(objcModelMTemplate, models[modelName]);
-    ret[models[modelName].objcModelName + '.m'] = script;
+    var script = renderContent(objcModelHTemplate, modelDesc);
+    ret[objcModelName + '.h'] = script;
 
-    var script = renderContent(objcRepoHTemplate, models[modelName]);
-    ret[models[modelName].objcModelName + 'Repository.h'] = script;
+    var script = renderContent(objcModelMTemplate, modelDesc);
+    ret[objcModelName + '.m'] = script;
 
-    var script = renderContent(objcRepoMTemplate, models[modelName]);
-    ret[models[modelName].objcModelName + 'Repository.m'] = script;
+    var script = renderContent(objcRepoHTemplate, modelDesc);
+    ret[objcModelName + 'Repository.h'] = script;
+
+    var script = renderContent(objcRepoMTemplate, modelDesc);
+    ret[objcModelName + 'Repository.m'] = script;
   }
 
   return ret;
@@ -56,12 +60,20 @@ function describeModels(app) {
       if (!ctor || method.sharedMethod.isStatic) return;
       method.accepts = ctor.accepts.concat(method.accepts);
     });
+
+    // Skip the User class as its Obj-C implementation is provided as a part of the SDK framework.
+    var isUser = c.sharedClass.ctor.prototype instanceof app.loopback.User ||
+      c.sharedClass.ctor.prototype === app.loopback.User.prototype;
+    if (isUser) {
+      return;
+    }
+
     c.pluralName = c.sharedClass.ctor.pluralModelName;
     c.params =  app.models[c.name].definition.properties;
     c.baseModel = app.models[c.name].definition.settings.base;
 
-    if (c.baseModel != null && typeof(c.baseModel) === "function") {
-      c.baseModel = "";
+    if (c.baseModel != null && typeof(c.baseModel) === 'function') {
+      c.baseModel = '';
     }
     if (app.models[c.name].definition._ids != null) {
       c.isGenerated = app.models[c.name].definition._ids[0].property.generated;
@@ -71,11 +83,7 @@ function describeModels(app) {
     c.relations = app.models[c.name].definition.settings.relations;
     c.acls = app.models[c.name].definition.settings.acls;
     c.validations = app.models[c.name].definition.settings.validations;
-    c.isUser = c.sharedClass.ctor.prototype instanceof app.loopback.User ||
-      c.sharedClass.ctor.prototype === app.loopback.User.prototype;
-    if (c.isUser) {
-      return;
-    }
+
     result[name] = c;
   });
 
@@ -119,7 +127,7 @@ function buildScopeMethod(models, modelName, method) {
     if (!targetClass) {
       console.error(
         'Warning: scope %s.%s is missing _targetClass property.' +
-        '\nThe Angular code for this scope won\'t be generated.' +
+        '\nThe iOS code for this scope won\'t be generated.' +
         '\nPlease upgrade to the latest version of' +
         '\nloopback-datasource-juggler to fix the problem.',
         modelName, scopeName);
@@ -130,7 +138,7 @@ function buildScopeMethod(models, modelName, method) {
     if (!findModelByName(models, targetClass)) {
       console.error(
         'Warning: scope %s.%s targets class %j, which is not exposed ' +
-        '\nvia remoting. The Angular code for this scope won\'t be generated.',
+        '\nvia remoting. The iOS code for this scope won\'t be generated.',
         modelName, scopeName, targetClass);
       modelClass.scopes[scopeName] = null;
       return;
@@ -152,36 +160,6 @@ function buildScopeMethod(models, modelName, method) {
     apiName += '.destroyAll';
   } else {
     apiName += '.' + op;
-  }
-
-  // Names of resources/models in Angular start with a capital letter
-  var ngModelName = modelName[0].toUpperCase() + modelName.slice(1);
-  method.internal = 'Use ' + ngModelName + '.' + apiName + '() instead.';
-
-  // build a reverse record to be used in ngResource
-  // Product.__find__categories -> Category.::find::product::categories
-  var reverseName = '::' + op + '::' + modelName + '::' + scopeName;
-
-  var reverseMethod = Object.create(method);
-  reverseMethod.name = reverseName;
-  reverseMethod.internal = 'Use ' + ngModelName + '.' + apiName + '() instead.';
-  // override possibly inherited values
-  reverseMethod.deprecated = false;
-
-  var reverseModel = findModelByName(models, targetClass);
-  reverseModel.methods.push(reverseMethod);
-  if(reverseMethod.name.match(/create/)){
-    var createMany = Object.create(reverseMethod);
-    createMany.name = createMany.name.replace(
-      /create/,
-      'createMany'
-    );
-    createMany.internal = createMany.internal.replace(
-      /create/,
-      'createMany'
-    );
-    createMany.isReturningArray = function() { return true; };
-    reverseModel.methods.push(createMany);
   }
 
   var scopeMethod = Object.create(method);
@@ -212,27 +190,27 @@ function findModelByName(models, name) {
 function addObjCNames(models, modelPrefix) {
   for (var modelName in models) {
     var meta = models[modelName];
-    meta.objcModelName = modelPrefix + modelName[0].toUpperCase() + modelName.slice(1);
+    meta.objcModelName = modelPrefix + pascalCase(modelName);
     if (meta.baseModel === 'Model' || meta.baseModel === 'PersistedModel') {
       meta.objcBaseModel = 'LB' + meta.baseModel;
     } else {
-      console.error('unknown baseModel name: ' + meta.baseModel); // FIXME
+      throw new Error('Unknown base model: ' + meta.baseModel + ' for model: ' + modelName);
     }
 
     meta.objcParams = [];
     for (var param in meta.params) {
-      var type = meta.params[param].type.name;
-      console.log('param type: ' + meta.params[param].type.name); // FIXME
-      if (type === 'String') {
+      var type = meta.params[param].type;
+      var name = type.name;
+      if (name === 'String') {
         meta.params[param].type.objcName = '(nonatomic, copy) NSString *';
-      } else if (type === 'Number') {
+      } else if (name === 'Number') {
         meta.params[param].type.objcName = 'long ';
-      } else if (type === 'Boolean') {
+      } else if (name === 'Boolean') {
         meta.params[param].type.objcName = 'BOOL ';
-      } else if (typeof type === 'undefined') { // FIXME -- must be an array
+      } else if (Array.isArray(type)) {
         meta.params[param].type.objcName = '(nonatomic) NSArray *';
       } else {
-        console.error('ERROR: unknown param type: ' + meta.params[param]); // FIXME
+        throw new Error('Unsupported parameter type: ' + name + ' in model: ' + modelName);
       }
     }
   }
@@ -247,34 +225,10 @@ function readTemplate(filename) {
 }
 
 function renderContent(template, modelMetaInfo) {
-  var script = ejs.render(template, {
-    meta: modelMetaInfo
-  });
-  script = ngdocToDox(script);
-
+  var script = ejs.render(
+    template,
+    { meta: modelMetaInfo }
+  );
   return script;
 }
 
-function ngdocToDox(script) {
-  // Transform ngdoc comments and make them compatible with dox/strong-docs
-  script = script
-    // Insert an empty line (serving as jsdoc description) before @ngdoc
-    .replace(/^(\s+\*)( @ngdoc)/gm, '$1\n$1$2')
-    // Remove module name from all names
-    .replace(/\blbServices\./g, '')
-    // Fix `## Example` sections
-    .replace(/## Example/g, '**Example**')
-    // Annotate Angular objects as jsdoc classes
-    .replace(/^((\s+\*) @ngdoc object)/mg, '$1\n$2 @class')
-    // Annonotate Angular methods as jsodc methods
-    .replace(/^((\s+\*) @ngdoc method)/mg, '$1\n$2 @method')
-    // Hide the top-level module description
-    .replace(/^(\s+\*) @module.*$/mg, '$1 @private')
-    // Change `Model#method` to `Model.method` in @name
-    .replace(/^(\s+\* @name) ([^# \n]+)#([^# \n]+) *$/mg, '$1 $2.$3')
-    // Change `Model#method` to `Model.method` in @link
-    // Do not modify URLs with anchors, e.g. `http://foo/bar#anchor`
-    .replace(/({@link [^\/# }\n]+)#([^# }\n]+)/g, '$1.$2');
-
-  return script;
-}

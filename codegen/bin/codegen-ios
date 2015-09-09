@@ -3,7 +3,6 @@
 var fs = require('fs');
 var path = require('path');
 var mkdirp = require('mkdirp');
-var semver = require('semver');
 var optimist = require('optimist');
 
 // var generator = require(loopback-sdk-ios-codegen);
@@ -19,28 +18,46 @@ var argv = optimist
   .describe('p', 'The prefix for generated iOS object names.')
   .default('p', '')
   .alias({ p: 'model-name-prefix' })
+  .describe('v', 'Print more info about the progress.')
+  .alias({ v: 'verbose' })
   .demand(2)
   .argv;
 
-var appFile = path.resolve(argv._[0]);
-var clientDir = path.resolve(argv._[1]);
-var modelPrefix = argv['model-name-prefix'];
+try {
+  var appFile = path.resolve(argv._[0]);
+  var clientDir = path.resolve(argv._[1]);
+  var modelPrefix = argv['model-name-prefix'];
+  var verbose = argv['verbose'];
 
-console.error('Loading LoopBack app %j', appFile);
-var app = require(appFile);
-// assertLoopBackVersion(appFile);
+  console.error('Loading LoopBack app %j', appFile);
+  var app = require(appFile);
+  assertLoopBackVersion(app);
 
-console.error('Generating iOS models with prefix %j', modelPrefix);
-var files = generator.objcModels(app, modelPrefix);
+  console.error('Generating iOS models with prefix %j', modelPrefix);
+  var files = generator.objcModels(app, modelPrefix);
 
-if (!fs.existsSync(clientDir)){
-  mkdirp.mkdirP.sync(clientDir);
+  if (!fs.existsSync(clientDir)){
+    mkdirp.mkdirP.sync(clientDir);
+  }
+
+  for (var objcFileName in files) {
+    var filepath = path.resolve(clientDir, objcFileName);
+    console.log('Writing: ' + filepath);
+    if (verbose) {
+      console.error('--');
+      console.error(files[objcFileName]);
+      console.error('--\n');
+    }
+    fs.writeFileSync(filepath, files[objcFileName]);
+  }
+  
+  console.error('Done\n');
 }
-
-for (var objcFileName in files) {
-  fs.writeFileSync(clientDir + "/" + objcFileName, files[objcFileName]);
-  console.log('--- ' + objcFileName);
-  console.log(files[objcFileName]);
+catch(err) {
+  console.error('\nERROR: ' + err.message + '\n');
+  if (verbose) {
+    console.error(err.stack);
+  }
 }
 
 // The app.js scaffolded by `slc lb project` loads strong-agent module that
@@ -55,18 +72,13 @@ process.nextTick(function() {
 
 //--- helpers ---//
 
-function assertLoopBackVersion( appFile ) {
-  var Module = require('module');
-
-  // Load the 'loopback' module in the context of the app.js file,
-  // usually from node_modules/loopback of the project of app.js
-  var loopback = Module._load('loopback', Module._cache[appFile]);
-
-  if (semver.lt(loopback.version, '1.6.0')) {
-    console.error(
-      '\nThe code generator does not support applications based\n' +
-      'on LoopBack versions older than 1.6.0. Please upgrade your\n' +
+function assertLoopBackVersion(app) {
+  // app.loopback property was added before v2.0.0.
+  // If app.loopback is undefined, then you can safely assume it's an unsupported version.
+  if (typeof app.loopback === 'undefined') {
+    throw new Error('LoopBack version too old\n' +
+      'The code generator does not support applications based\n' +
+      'on LoopBack versions older than 2.0.0. Please upgrade your\n' +
       'project to a recent version of LoopBack and run this tool again.\n');
-    process.exit(1);
   }
 }
