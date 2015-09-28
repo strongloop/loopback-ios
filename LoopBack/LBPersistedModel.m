@@ -25,7 +25,7 @@
 @synthesize _id = __id;
 
 - (void)setId:(id)_id {
-    __id = _id;
+    __id = [_id copy];
 }
 
 - (NSDictionary *)toDictionary {
@@ -41,7 +41,7 @@
     [self invokeMethod:self._id ? @"save" : @"create"
             parameters:[self toDictionary]
                success:^(id value) {
-                   __id = [[value valueForKey:@"id"] copy];
+                   [self setId:[value valueForKey:@"id"]];
                    success();
                }
                failure:failure];
