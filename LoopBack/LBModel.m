@@ -140,4 +140,5 @@ static NSDateFormatter *jsonDateFormatter = nil;
     return model;
 }
 
+
 @end
