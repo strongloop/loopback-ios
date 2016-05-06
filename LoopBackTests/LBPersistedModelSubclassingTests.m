@@ -289,6 +289,7 @@ static NSNumber *lastId;
             XCTAssertEqualObjects(widget.data, (@{ @"data1": @1, @"data2": @2 }), @"Invalid data.");
             XCTAssertEqualObjects(widget.stringArray, (@[ @"one", @"two", @"three" ]), @"Invalid array.");
             XCTAssertEqualObjects(widget.date, [NSDate dateWithTimeIntervalSince1970:123], @"Invalid date.");
+            // The following is reported to fail on CI under Xcode 7.2.1.
             XCTAssertEqualObjects(widget.buffer, testData, @"Invalid buffer.");
             XCTAssertEqual(widget.geopoint.coordinate.latitude, 12.3, @"Invalid latitude.");
             XCTAssertEqual(widget.geopoint.coordinate.longitude, 45.6, @"Invalid longitude.");

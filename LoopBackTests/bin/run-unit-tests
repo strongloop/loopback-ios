@@ -20,6 +20,7 @@ xcodebuild \
 
 # prepare for running test servers
 npm install
+npm ls loopback
 
 # run the test servers
 node LoopBackTests/server/index.js &
