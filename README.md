@@ -19,3 +19,5 @@ See [LoopBack iOS SDK](http://apidocs.strongloop.com/loopback-sdk-ios/api/annota
 >  - `findWithId` was renamed to `findById`
 
 See also the [official iOS SDK documentation](http://docs.strongloop.com/display/LB/iOS+SDK). 
+
+Bow ties are cool.
