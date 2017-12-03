@@ -115,6 +115,9 @@
             }
 
             const char *type = property_getAttributes(property);
+            if ([obj isKindOfClass:[NSNull class]]) {
+                obj = nil;
+            }
             if ([obj isKindOfClass:[NSString class]]) {
                 // if the property type is NSDate, convert the string to a date object
                 if (strncmp(type, "T@\"NSDate\",", 11) == 0) {

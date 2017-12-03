@@ -58,6 +58,7 @@
 }
 
 - (void)testToDictionary {
+    
     NSDictionary *origDict = @{ @"name": @"Foo", @"bars": @123 };
     LBModel *model = [self.repository modelWithDictionary:origDict];
 
