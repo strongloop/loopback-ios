@@ -109,4 +109,8 @@ typedef void (^LBPersistedModelFindOneSuccessBlock)(LBPersistedModel *model);
                   success:(LBPersistedModelAllSuccessBlock)success
                   failure:(SLFailureBlock)failure;
 
+- (void)findWithFilterString:(NSString *) filter
+                  success: (LBPersistedModelAllSuccessBlock)success
+                  failure:(SLFailureBlock)failure;
+
 @end

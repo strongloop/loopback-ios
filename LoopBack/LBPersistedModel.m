@@ -155,6 +155,26 @@
                      failure:failure];
 }
 
+- (void)findWithFilterString:(NSString *) filter
+               success: (LBPersistedModelAllSuccessBlock)success
+               failure:(SLFailureBlock)failure {
+    if(!filter) {
+        filter = @{};
+    }
+    [self invokeStaticMethod:@"find"
+                  parameters:@{@"filter": filter}
+                     success:^(id value) {
+                         NSAssert([[value class] isSubclassOfClass:[NSArray class]], @"Received non-Array: %@", value);
+                         
+                         NSMutableArray *models = [NSMutableArray array];
+                         [value enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+                             [models addObject:[self modelWithDictionary:obj]];
+                         }];
+                         
+                         success(models);
+                     }
+                     failure:failure];
+}
 
 
 @end
